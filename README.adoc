@@ -1,0 +1,4 @@
+= Zeitgeist Pugna
+
+A bot combatant for the Pugna game.  See
+https://github.com/crafty-coder/pugna[pugna] for more details.
