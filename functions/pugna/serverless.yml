@@ -15,7 +15,7 @@ provider:
   name: aws
   runtime: nodejs6.10
   environment:
-    PRINT_DEBUG: true
+    PRINT_DEBUG: false
   vpc:
     securityGroupIds:
       - Ref: FunctionsSecurityGroup

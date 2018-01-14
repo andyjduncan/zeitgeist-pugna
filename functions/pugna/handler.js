@@ -14,10 +14,6 @@ module.exports.ping = (event, context, callback) => {
     callback(null, response);
 };
 
-const pointSquareRelativeTo = (grid) => (target) => {
-
-};
-
 const findInPositions =
     (positions) =>
         (x, y) => {
@@ -32,9 +28,7 @@ const findInPositions =
             return position;
         };
 
-const surroundingPointsInPositions =
-    (positions) =>
-        (point) => {
+const surroundingPoints = (positions, point) => {
             const findPoint = findInPositions(positions);
             return [
                 {
@@ -80,84 +74,71 @@ const surroundingPointsInPositions =
             ];
         };
 
-const scoreAgainstPoint = (positions) => (target) => (p) => {
-    const surroundingPoints = surroundingPointsInPositions(positions)(p.point)
-        .filter(p => !(p.point.coordinate.x === target.coordinate.x && p.point.coordinate.y === target.coordinate.y));
-    debug('Scoring ' + JSON.stringify(p));
-    debug(JSON.stringify(surroundingPoints));
-    if (p.point.playerName) {
-        debug('Point is occupied');
-        if (p.point.playerName !== target.playerName) {
-            debug('Other player');
-            if (surroundingPoints.some((s) => s.point.playerName && (s.point.playerName !== target.playerName))) {
-                debug('Point is guarded');
-                return 1;
-            }
-            debug('Safe to take');
-            return 10;
-        }
-        debug('My player');
-        return 0;
-    }
-    debug('Point is not occupied');
-    return 5;
-};
-
-const scoreInPositions =
-    (positions) =>
-        (target) =>
-            (point) => {
-                const scorePoint = scoreAgainstPoint(positions)(target);
-
-                point.score += scorePoint(point);
-                // point.score = surroundingPointsInPositions(positions)(point)
-                //     .filter(p => p.coordinate.x !== point.coordinate.x && p.coordinate.y !== point.coordinate.y)
-                //     .map(scorePoint)
-                //     .reduce(p => p.score, 0);
-                return point;
-            };
-
 const distanceToPoint = (a, b) => Math.sqrt(Math.pow(a.coordinate.x - b.coordinate.x, 2) +
     Math.pow(a.coordinate.y - b.coordinate.y, 2));
 
-const findClosestOpponent = (target, positions) => positions
+const findClosestOpponent = (positions) => (target) => positions
     .filter((p) => p.playerName !== target.playerName)
     .sort((a, b) =>
         distanceToPoint(target, a) - distanceToPoint(target, b)
     )[0];
 
-const comparePoints = (pointA, pointB) => pointB.score - pointA.score;
+const checkSafeMove = (positions) => (playerName) => (p) => {
+    const captureSurrounds = surroundingPoints(positions, p.point);
+    return !captureSurrounds.some(c => c.point.playerName && (c.point.playerName !== playerName));
+};
 
-const determineNextMove = (positions, target) => {
+const determineNextMove = (positions, target, boardSize) => {
     if (!positions.some((p) => p.playerName !== target.playerName)) {
         debug('We already won!');
         return 'STAY';
     }
 
-    const surroundingPoints = surroundingPointsInPositions(positions);
+    const safe = checkSafeMove(positions)(target.playerName);
 
-    const scorePoint = scoreInPositions(positions)(target);
+    const eligiblePoints = surroundingPoints(positions, target)
+        .filter(p => p.point.coordinate.x > -1
+            && p.point.coordinate.x < boardSize
+            && p.point.coordinate.y > -1
+            && p.point.coordinate.y < boardSize);
 
-    const scoredPoints = surroundingPoints(target)
-        .map(scorePoint);
+    debug('Eligible moves: ' + JSON.stringify(eligiblePoints));
+    const possibleCaptures = eligiblePoints
+        .filter(p => p.point.playerName && (p.point.playerName !== target.playerName));
+    const safeCaptures = possibleCaptures.filter(safe);
 
-    const closestOpponent = findClosestOpponent(target, positions);
+    const openPoints = eligiblePoints
+        .filter(p => !p.point.playerName);
 
-    debug('Closest opponent: ' + JSON.stringify(closestOpponent));
+    const closest = findClosestOpponent(positions);
 
-    debug(JSON.stringify(scoredPoints
-        .map(p => [p, distanceToPoint(closestOpponent, p.point)])
-        .sort((a, b) => a[1] - b[1])));
+    const safeOpenPoints = openPoints
+        .filter(safe)
+        .map(p => {
+            const closestOpponent = closest(target, positions);
+            return [p, distanceToPoint(closestOpponent, p.point)]
+        })
+        .sort((a, b) => a[1] - b[1])
+        .map(pd => pd[0]);
 
-    scoredPoints
-        .map(p => [p, distanceToPoint(p.point, closestOpponent)])
-        .sort((a, b) => a[1] - b[1])[0][0].score += 4;
+    if (safeCaptures.length) {
+        debug('Safe captures: ' + JSON.stringify(safeCaptures));
+        return safeCaptures[0].move;
+    }
 
-    scoredPoints.sort(comparePoints);
+    if (safeOpenPoints.length) {
+        debug('Safe open points: ' + JSON.stringify(safeOpenPoints));
+        return safeOpenPoints[0].move;
+    }
 
-    debug("Scored points: " + JSON.stringify(scoredPoints));
+    if (possibleCaptures.length) {
+        debug('Unsafe captures: ' + JSON.stringify(possibleCaptures));
+        return possibleCaptures[0].move;
+    }
 
-    return scoredPoints[0].move;
+    debug('Doing nothing');
+
+    return 'STAY';
 };
 
 module.exports.nextMove = (event, context, callback) => {
@@ -169,13 +150,15 @@ module.exports.nextMove = (event, context, callback) => {
 
     const positions = game.boardState.positions;
 
+    const boardSize = game.boardState.boardSize;
+
     debug('Point to move: ' + JSON.stringify(target));
 
     debug('Board state: ' + JSON.stringify(positions));
 
     const response = {
         statusCode: 200,
-        body: determineNextMove(positions, target)
+        body: determineNextMove(positions, target, boardSize)
     };
 
     callback(null, response);
