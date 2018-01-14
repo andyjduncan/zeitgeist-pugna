@@ -1,0 +1,97 @@
+# Welcome to serverless. Read the docs
+# https://serverless.com/framework/docs/
+
+# Serverless.yml is the configuration the CLI
+# uses to deploy your code to your provider of choice
+
+# The `service` block is the name of the service
+service: pugna
+
+plugins:
+  - serverless-aws-alias
+
+# The `provider` block defines where your service will be deployed
+provider:
+  name: aws
+  runtime: nodejs6.10
+  environment:
+    PRINT_DEBUG: true
+  vpc:
+    securityGroupIds:
+      - Ref: FunctionsSecurityGroup
+    subnetIds:
+      - Ref: PrivateSubnetA
+      - Ref: PrivateSubnetB
+      - Ref: PrivateSubnetC
+
+# The `functions` block defines what code to deploy
+functions:
+  ping:
+    handler: handler.ping
+    events:
+      - http:
+          path: ping
+          method: get
+  nextmove:
+    handler: handler.nextMove
+    events:
+      - http:
+          path: nextmove
+          method: post
+
+resources:
+  Resources:
+    Vpc:
+      Type: "AWS::EC2::VPC"
+      Properties:
+        CidrBlock: '10.0.0.0/16'
+    PublicSubnetA:
+      Type: "AWS::EC2::Subnet"
+      Properties:
+        AvailabilityZone: 'eu-west-1a'
+        CidrBlock: '10.0.1.0/24'
+        VpcId:
+          Ref: Vpc
+    PublicSubnetB:
+      Type: "AWS::EC2::Subnet"
+      Properties:
+        AvailabilityZone: 'eu-west-1b'
+        CidrBlock: '10.0.2.0/24'
+        VpcId:
+          Ref: Vpc
+    PublicSubnetC:
+      Type: "AWS::EC2::Subnet"
+      Properties:
+        AvailabilityZone: 'eu-west-1c'
+        CidrBlock: '10.0.3.0/24'
+        VpcId:
+          Ref: Vpc
+    PrivateSubnetA:
+      Type: "AWS::EC2::Subnet"
+      Properties:
+        AvailabilityZone: 'eu-west-1a'
+        CidrBlock: '10.0.4.0/24'
+        VpcId:
+          Ref: Vpc
+    PrivateSubnetB:
+      Type: "AWS::EC2::Subnet"
+      Properties:
+        AvailabilityZone: 'eu-west-1b'
+        CidrBlock: '10.0.5.0/24'
+        VpcId:
+          Ref: Vpc
+    PrivateSubnetC:
+      Type: "AWS::EC2::Subnet"
+      Properties:
+        AvailabilityZone: 'eu-west-1c'
+        CidrBlock: '10.0.6.0/24'
+        VpcId:
+          Ref: Vpc
+
+    FunctionsSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Api functions
+        VpcId:
+          Ref: Vpc
+

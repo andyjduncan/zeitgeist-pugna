@@ -1,0 +1,3 @@
+{
+  "body": "{\"boardState\":{\"positions\":[{\"coordinate\":{\"x\":5,\"y\":35},\"playerName\":\"Player 2\"},{\"coordinate\":{\"x\":5,\"y\":37},\"playerName\":\"Player 1\"},{\"coordinate\":{\"x\":4,\"y\":37},\"playerName\":\"Player 1\"}]},\"positionToMove\":{\"coordinate\":{\"x\":5,\"y\":36},\"playerName\":\"Player 2\"}}"
+}
